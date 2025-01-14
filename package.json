@@ -2,9 +2,11 @@
   "name": "api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "Controller.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node Controller.js",
+    "build": "echo 'No build step required'",
+    "dev": "nodemon Controller.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
