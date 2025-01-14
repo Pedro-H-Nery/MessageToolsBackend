@@ -12,7 +12,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const uri = "mongodb+srv://pedronery404:root@cluster0.ifm0i.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGO_DB_URI;
 const client = new MongoClient(uri);
 let db;
 
