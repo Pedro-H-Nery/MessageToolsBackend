@@ -34,7 +34,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Para analisar o corpo das requisições como JSON
 app.use(express.json());
 
-app.post('/iniciaBot', (req, res) => {
+app.post('/api/iniciaBot', (req, res) => {
     venomBot(req.body.id_usuario);
   });
 
@@ -448,7 +448,7 @@ async function voltar(idUsuario, numeroResolvido, resolvidoEm){
     return true;
 }
 
-app.post("/login", async (req, res) =>{
+app.post("/api/login", async (req, res) =>{
     try{
         const usuario = await login(req.body.email, req.body.senha);
         if (usuario != null) {
@@ -472,7 +472,7 @@ app.post("/login", async (req, res) =>{
     }
 });
 
-app.post("/cadastro", async (req, res) => {
+app.post("/api/cadastro", async (req, res) => {
     try {
         const usuario = await cadastro(req.body.email, req.body.senha, req.body.numero, req.body.tipos);
         if (usuario != null) {
@@ -496,11 +496,11 @@ app.post("/cadastro", async (req, res) => {
     }
 });
 
-app.post("/venomBot", async (req, res) => {
+app.post("/api/venomBot", async (req, res) => {
     
 });
 
-app.post("/configurarTipos", async (req, res) =>{
+app.post("/api/configurarTipos", async (req, res) =>{
     try{
         const usuario = await configurarTipos(req.body.idUsuario, req.body.tipos);
         if (usuario) {
@@ -525,7 +525,7 @@ app.post("/configurarTipos", async (req, res) =>{
     }
 });
 
-app.post("/recebeMensagem", async (req, res) =>{
+app.post("/api/recebeMensagem", async (req, res) =>{
     try{
         recebeMensagem(req.body.message);
         res.send("Mensagem recebida e classificada com sucesso!");
@@ -534,7 +534,7 @@ app.post("/recebeMensagem", async (req, res) =>{
     }
 });
 
-app.post("/nivel", async (req, res) =>{
+app.post("/api/nivel", async (req, res) =>{
     console.log(req.body.idUsuario+ req.body.nomeNivel);
     const resposta = await nivel(req.body.idUsuario, req.body.nomeNivel);
     console.log(resposta);
@@ -544,7 +544,7 @@ app.post("/nivel", async (req, res) =>{
     });
 });
 
-app.post("/niveisUsuario", async (req, res) =>{
+app.post("/api/niveisUsuario", async (req, res) =>{
     const resposta = await niveisUsuario(req.body.idUsuario);
     res.status(201).json({ 
         success: true,  
@@ -552,7 +552,7 @@ app.post("/niveisUsuario", async (req, res) =>{
     });
 });
 
-app.post("/resolver", async (req, res) =>{
+app.post("/api/resolver", async (req, res) =>{
     try{
         const usuario = await resolver(req.body.idUsuario, req.body.nomeNivel, req.body.resolverNumero);
         if (usuario) {
@@ -575,7 +575,7 @@ app.post("/resolver", async (req, res) =>{
     }
 });
 
-app.post("/historicoUsuario", async (req, res) =>{
+app.post("/api/historicoUsuario", async (req, res) =>{
     const resposta = await historicoUsuario(req.body.idUsuario);
     res.status(201).json({ 
         success: true, 
@@ -583,7 +583,7 @@ app.post("/historicoUsuario", async (req, res) =>{
     });
 });
 
-app.post("/voltar", async (req, res) =>{
+app.post("/api/voltar", async (req, res) =>{
     try{
         const resposta = voltar(req.body.idUsuario, req.body.numeroResolvido, req.body.resolvidoEm);
         if (resposta) {
@@ -607,7 +607,7 @@ app.post("/voltar", async (req, res) =>{
 });
 
 let port = process.env.port || 3000;
-app.get('/', (req, res) => {
+app.get('/api/', (req, res) => {
     res.send("Meu servidor ta OK");
 });
 
