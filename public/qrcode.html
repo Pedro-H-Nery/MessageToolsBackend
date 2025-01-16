@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conexão do Whatsapp com MessageTools</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    #qrcode {
+      margin: 20px 0;
+    }
+    .error {
+      color: red;
+    }
+    .message {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h1>Venom Bot QR Code</h1>
+  <p id="status">Verificando conexão do WhatsApp com o aplicativo...</p>
+  <div id="qrcode"></div>
+  <p class="error" id="error"></p>
+  <p class="message" id="message"></p>
+
+  <script>
+    // Função para obter parâmetros da URL
+    function getQueryParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    // Obter o idUsuario da URL
+    const idUsuario = getQueryParam('idUsuario');
+
+    // Elementos DOM
+    const statusElement = document.getElementById('status');
+    const qrCodeElement = document.getElementById('qrcode');
+    const errorElement = document.getElementById('error');
+    const messageElement = document.getElementById('message');
+
+    // Verificar se o idUsuario foi fornecido
+    if (!idUsuario) {
+      errorElement.textContent = 'Usuário não existe!';
+      statusElement.textContent = '';
+    } else {
+      // Fazer requisição à API
+      fetch(`http://192.168.0.198:3000/api/venomBot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idUsuario: idUsuario }),
+      })
+        .then(response => {
+          if (response.status === 500) {
+            return response.json().then(data => {
+              if (data.success) {
+                messageElement.textContent = data.message;
+                statusElement.textContent = '';
+                throw new Error('Conexão já realizada');
+              }
+            });
+          }
+
+          if (!response.ok) {
+            throw new Error(`Usuário não encontrado!`);
+          }
+
+          return response.json();
+        })
+        .then(data => {
+          if (data.success && data.qrCode) {
+            // Exibir o QR Code em base64
+            const img = document.createElement('img');
+            img.src = data.qrCode;
+            qrCodeElement.appendChild(img);
+            statusElement.textContent = 'Seu WhatsApp ainda não está conectado ao nosso aplicativo. Por favor, escaneie o QR Code para conectar.';
+          } else {
+            throw new Error(data.message || 'Erro desconhecido da API.');
+          }
+        })
+        .catch(err => {
+          // Mostrar erros, exceto em caso de conexão já realizada
+          if (err.message !== 'Conexão já realizada') {
+            errorElement.textContent = `Erro: ${err.message}`;
+            statusElement.textContent = '';
+          }
+        });
+    }
+  </script>
+</body>
+</html>

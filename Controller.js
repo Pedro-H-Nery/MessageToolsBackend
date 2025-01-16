@@ -1,12 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const venom = require("venom-bot");
 const crypto = require("crypto");
 const OpenAI = require("openai");
 const { MongoClient } = require('mongodb');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -29,14 +28,10 @@ app.use(cors());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 // Configurar para servir arquivos estáticos (frontend)
-app.use(express.static(path.join(__dirname, 'public')));
+//app.use(express.static(path.join(__dirname, 'public')));
 
 // Para analisar o corpo das requisições como JSON
 app.use(express.json());
-
-app.post('/api/iniciaBot', (req, res) => {
-    venomBot(req.body.id_usuario);
-  });
 
 async function login(email, senha) {
     try {
@@ -189,103 +184,6 @@ function criaHash(numero){
     return crypto.createHash('sha256').update(stringHash).digest('hex');
 }
 
-async function venomBot(id_usuario){
-    const usuario = await db.collection("usuarios").findOne({ idUsuario : id_usuario });
-    if(usuario != null){
-        venom.create(
-            id_usuario,
-            (base64Qr) => {
-              // Retornar o QR Code como resposta
-              res.json({ qrCode: base64Qr });
-            },
-            (statusSession) => {
-              if (statusSession === 'qrCodeSuccess') {
-                conectar(id_usuario);
-              }
-            },
-            {
-              headless: true,
-              useChrome: false,
-              disableSpins: true,
-              folderNameToken: 'tokens',
-              mkdirFolderToken: './',
-            }
-          );
-    }else{
-        res.json({ qrCode: null });
-    }
-}
-
-async function conectar(idUsuario){
-    const edicao = await db.collection("usuarios").updateOne({idUsuario: idUsuario}, { $set: { conectado: true}});
-}
-
-function criaBot(id_usuario) {
-    // venom
-    //     .create({
-    //         session: id_usuario
-    //     })
-    //     .then((client) => start(client))
-    //     .catch((erro) => {
-    //         console.log(erro);
-    //     });
-
-    venom
-        .create(
-            id_usuario,
-            (base64Qr, asciiQR, attempts, urlCode) => {
-                console.log(asciiQR); // Exibe o QR Code no terminal (opcional)
-                const matches = base64Qr.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-                const response = {};
-
-                if (!matches || matches.length !== 3) {
-                    return new Error('Invalid input string');
-                }
-
-                response.type = matches[1];
-                response.data = Buffer.from(matches[2], 'base64');
-
-                // Salva o QR Code original como imagem
-                fs.writeFile('out_'+id_usuario+'.png', response.data, 'binary', function (err) {
-                    if (err) {
-                    console.log('Erro ao salvar o arquivo:', err);
-                    } else {
-                    console.log('QR Code salvo como out.png. Processando imagem...');
-
-                    // Processa a imagem para tons 255 e 0
-                    sharp('out_'+id_usuario+'.png')
-                        .threshold() // Converte a imagem para binário (preto e branco)
-                        .toFile('out_'+id_usuario+'_bw.png', (err, info) => {
-                        if (err) {
-                            console.error('Erro ao processar a imagem:', err);
-                        } else {
-                            console.log('Imagem processada com sucesso e salva como out_'+id_usuario+'_bw.png');
-                        }
-                        });
-                    }
-                });
-            },
-            (statusSession) => {
-                console.log('Status da sessão:', statusSession);
-            },
-            {
-                headless: true,
-                useChrome: false,
-                disableSpins: true,
-                folderNameToken: 'tokens',
-                mkdirFolderToken: './',
-            }
-        )
-        .then((client) => start(client))
-        .catch((erro) => { console.log(erro); });
-}
-
-const start = (client) => {
-    client.onMessage((message) => {
-        recebeMensagem(message);
-    });
-}
-
 async function recebeMensagem(message){
     const numeroUsuario = message.to;
     const numeroRemetente = message.from;
@@ -293,7 +191,7 @@ async function recebeMensagem(message){
     const mensagem = message.body;
     const usuario = await db.collection("usuarios").findOne({ numero: numeroUsuario });
     if(usuario == null){
-        return null;
+        return false;
     }
     const tipos = usuario.tipos;
     let classificacoes = usuario.classificacoes;
@@ -347,6 +245,7 @@ async function recebeMensagem(message){
         console.log(usuario2);
         console.log(classificacoes);
     }
+    return true;
 }
 
 function mostraNumero(numero){
@@ -496,10 +395,6 @@ app.post("/api/cadastro", async (req, res) => {
     }
 });
 
-app.post("/api/venomBot", async (req, res) => {
-    
-});
-
 app.post("/api/configurarTipos", async (req, res) =>{
     try{
         const usuario = await configurarTipos(req.body.idUsuario, req.body.tipos);
@@ -527,10 +422,24 @@ app.post("/api/configurarTipos", async (req, res) =>{
 
 app.post("/api/recebeMensagem", async (req, res) =>{
     try{
-        recebeMensagem(req.body.message);
-        res.send("Mensagem recebida e classificada com sucesso!");
-    }catch(error){
-        res.send("Erro ao receber e/ou classificar a mensagem: " + error);
+        const resposta = recebeMensagem(req.body.message);
+        if (resposta) {
+            res.status(201).json({ 
+                success: true, 
+                message: "Mensagem recebida e classificada com sucesso", 
+            });
+        } else {
+            res.status(401).json({ 
+                success: false, 
+                message: "Erro ao receber e/ou classificar a mensagem",
+            });
+        }
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: "Erro ao receber mensagem " + error, 
+            error: error.message 
+        });
     }
 });
 
