@@ -490,6 +490,15 @@ app.post("/api/voltar", async (req, res) =>{
     }
 });
 
+app.get('/api/test-db', async (req, res) => {
+    try {
+      await client.connect();
+      res.status(200).json({ success: true, message: 'Conectado ao MongoDB com sucesso!' });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Erro ao conectar ao MongoDB', error: error.message });
+    }
+  });
+
 let port = process.env.PORT || 3000;
 app.get('/api/', (req, res) => {
     res.send("Meu servidor ta OK");
