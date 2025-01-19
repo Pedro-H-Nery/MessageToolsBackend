@@ -5,7 +5,7 @@ const crypto = require("crypto");
 const OpenAI = require("openai");
 const { MongoClient } = require('mongodb');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -38,12 +38,9 @@ async function login(email, senha) {
         senha = crypto.createHash('sha256').update(senha).digest('hex');
         const idUsuario = crypto.createHash('sha256').update(email+senha).digest('hex');
         const usuario = await db.collection("usuarios").findOne({ idUsuario });
-        console.log(usuario);
         if (usuario) {
-            console.log("Usuário logou com sucesso!", usuario);
             return usuario;
         } else {
-            console.log("Email ou senha incorretos.");
             return null;
         }
     } catch (error) {
@@ -58,7 +55,6 @@ async function cadastro(email, senha, numero, tipos) {
         const emailExistente = await db.collection("usuarios").findOne({ email });
         const numeroExistente = await db.collection("usuarios").findOne({ numero });
         if (emailExistente || numeroExistente) {
-            console.log("Email e/ou Número já cadastrado.");
             return null;
         }
         senha = crypto.createHash('sha256').update(senha).digest('hex');
@@ -100,9 +96,7 @@ async function cadastro(email, senha, numero, tipos) {
             conectado,
             criadoEm: dataAtual,
         };
-        console.log(novoUsuario);
         await db.collection("usuarios").insertOne(novoUsuario);
-        console.log("Usuário cadastrado com sucesso!");
         return novoUsuario;
     } catch (error) {
         console.error("Erro no cadastro:", error);
@@ -132,7 +126,6 @@ function formataNumero(numero){
     }
     return "";
 }
-  
 
 async function configurarTipos(idUsuario, tipos){
     let usuario = await db.collection("usuarios").findOne({ idUsuario : idUsuario });
@@ -186,13 +179,14 @@ function criaHash(numero){
 
 async function recebeMensagem(message){
     const numeroUsuario = message.to;
-    const numeroRemetente = message.from;
-    const nomeRemetente =  message.sender.name;
-    const mensagem = message.body;
     const usuario = await db.collection("usuarios").findOne({ numero: numeroUsuario });
     if(usuario == null){
         return false;
     }
+    const numeroRemetente = message.from;
+    const nomeRemetente =  message.sender.name;
+    const mensagem = message.body;
+    console.log(mensagem);
     const tipos = usuario.tipos;
     let classificacoes = usuario.classificacoes;
     const idUsuario = usuario.idUsuario;
@@ -200,7 +194,7 @@ async function recebeMensagem(message){
     if(verificaNumeros.includes(numeroRemetente)){
         let resultado = [];
         if(usuario.assuntos != []){
-            const assuntosUsuario = usuario.assuntos.join(", ");
+            const assuntosUsuario = usuario.assuntos.join(", ").toLowerCase();
             const mensagemChatGpt = 'A mensagem "' + mensagem + '" tem relação com algum dos assuntos a seguir: ' + assuntosUsuario + '? Caso não a mensagem não tenha relação direta com nenhum assunto responda com null. Resposta sem . e com assuntos separados por ,';
             const completion = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo-0125",
@@ -211,6 +205,7 @@ async function recebeMensagem(message){
             let resposta = completion.choices[0].message.content;
             resposta = resposta.replace(/\s/g, '');
             resultado = resposta.split(",");
+            console.log(resultado);
         }
         for(let nivel in tipos){
             let numeros = tipos[nivel].numeros;
@@ -218,9 +213,8 @@ async function recebeMensagem(message){
                 let estaNivel = false;
                 if(tipos[nivel].tipoClassificacao == 0){
                     const listaPalavras = tipos[nivel].palavrasChave;
-                    console.log(listaPalavras);
                     for(let i = 0; i < listaPalavras.length; i++){
-                        if((mensagem.split(" ")).indexOf(listaPalavras[i]) > 0){
+                        if(((mensagem.toLowerCase()).split(" ")).indexOf(listaPalavras[i]) >= 0){
                             estaNivel = true;
                             break;
                         }
@@ -228,7 +222,6 @@ async function recebeMensagem(message){
                 }else if(tipos[nivel].tipoClassificacao == 1){
                     estaNivel = tipos[nivel].assuntos.some(element => resultado.includes(element.toLowerCase()));
                 }
-                console.log(estaNivel);
                 if(estaNivel){
                     if(!(numeroRemetente in classificacoes[nivel])){
                         classificacoes[nivel][numeroRemetente] = {
@@ -241,9 +234,6 @@ async function recebeMensagem(message){
                 }
             }
         }
-        const usuario2 = await db.collection("usuarios").findOne({ numero: numeroUsuario });
-        console.log(usuario2);
-        console.log(classificacoes);
     }
     return true;
 }
@@ -348,6 +338,13 @@ async function voltar(idUsuario, numeroResolvido, resolvidoEm){
 }
 
 app.post("/api/login", async (req, res) =>{
+    if (!db) {
+        // Caso a conexão com o MongoDB não tenha sido estabelecida
+        return res.status(500).json({
+            success: false,
+            message: "Banco de dados não conectado.",
+        });
+    }
     try{
         const usuario = await login(req.body.email, req.body.senha);
         if (usuario != null) {
@@ -411,7 +408,6 @@ app.post("/api/configurarTipos", async (req, res) =>{
             });
         }
     } catch (error) {
-        console.log(error);
         res.status(500).json({ 
             success: false, 
             message: "Erro ao configurar tipos.", 
@@ -421,32 +417,11 @@ app.post("/api/configurarTipos", async (req, res) =>{
 });
 
 app.post("/api/recebeMensagem", async (req, res) =>{
-    try{
-        const resposta = recebeMensagem(req.body.message);
-        if (resposta) {
-            res.status(201).json({ 
-                success: true, 
-                message: "Mensagem recebida e classificada com sucesso", 
-            });
-        } else {
-            res.status(401).json({ 
-                success: false, 
-                message: "Erro ao receber e/ou classificar a mensagem",
-            });
-        }
-    } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: "Erro ao receber mensagem " + error, 
-            error: error.message 
-        });
-    }
+    recebeMensagem(req.body.message);
 });
 
 app.post("/api/nivel", async (req, res) =>{
-    console.log(req.body.idUsuario+ req.body.nomeNivel);
     const resposta = await nivel(req.body.idUsuario, req.body.nomeNivel);
-    console.log(resposta);
     res.status(201).json({ 
         success: true,  
         resposta 
@@ -515,7 +490,7 @@ app.post("/api/voltar", async (req, res) =>{
     }
 });
 
-let port = process.env.port || 3000;
+let port = process.env.PORT || 3000;
 app.get('/api/', (req, res) => {
     res.send("Meu servidor ta OK");
 });
