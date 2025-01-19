@@ -338,23 +338,24 @@ async function voltar(idUsuario, numeroResolvido, resolvidoEm){
 }
 
 app.post("/api/login", async (req, res) =>{
+    if (!db) {
+        // Caso a conexão com o MongoDB não tenha sido estabelecida
+        return res.status(500).json({
+            success: false,
+            message: "Banco de dados não conectado.",
+        });
+    }
     try{
         const usuario = await login(req.body.email, req.body.senha);
         if (usuario != null) {
             res.status(201).json({ 
                 success: true, 
-                email: req.body.email,
-                senha: req.body.senha,
-                mongoDB: process.env.MONGO_DB_URI,
                 message: "Usuário logou com sucesso!", 
                 usuario 
             });
         } else {
             res.status(401).json({ 
                 success: false, 
-                email: req.body.email,
-                senha: req.body.senha,
-                mongoDB: process.env.MONGO_DB_URI,
                 message: "Email ou senha incorretos." 
             });
         }
@@ -362,9 +363,6 @@ app.post("/api/login", async (req, res) =>{
         res.status(500).json({ 
             success: false, 
             message: "Erro ao fazer login.", 
-            email: req.body.email,
-            senha: req.body.senha,
-            mongoDB: process.env.MONGO_DB_URI,
             error: error.message 
         });
     }
