@@ -342,6 +342,9 @@ app.post("/api/login", async (req, res) =>{
         // Caso a conexão com o MongoDB não tenha sido estabelecida
         return res.status(500).json({
             success: false,
+            email: req.email,
+            senha: req.senha,
+            mongoDB: process.env.MONGO_DB_URI,
             message: "Banco de dados não conectado.",
         });
     }
@@ -350,12 +353,18 @@ app.post("/api/login", async (req, res) =>{
         if (usuario != null) {
             res.status(201).json({ 
                 success: true, 
+                email: req.email,
+                senha: req.senha,
+                mongoDB: process.env.MONGO_DB_URI,
                 message: "Usuário logou com sucesso!", 
                 usuario 
             });
         } else {
             res.status(401).json({ 
                 success: false, 
+                email: req.email,
+                senha: req.senha,
+                mongoDB: process.env.MONGO_DB_URI,
                 message: "Email ou senha incorretos." 
             });
         }
@@ -363,6 +372,9 @@ app.post("/api/login", async (req, res) =>{
         res.status(500).json({ 
             success: false, 
             message: "Erro ao fazer login.", 
+            email: req.email,
+            senha: req.senha,
+            mongoDB: process.env.MONGO_DB_URI,
             error: error.message 
         });
     }
