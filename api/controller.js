@@ -16,10 +16,16 @@ const client = new MongoClient(uri);
 let db;
 
 async function connectDB() {
-  await client.connect();
-  db = client.db("MessageTools"); // Nome do banco de dados
-  console.log("Conectado ao MongoDB");
-}
+    try {
+      console.log("Tentando conectar ao MongoDB na Vercel...");
+      await client.connect();
+      db = client.db("MessageTools");
+      console.log("Conexão estabelecida com sucesso!");
+    } catch (error) {
+      console.error("Erro ao conectar ao MongoDB:", error.message);
+      throw error;
+    }
+  }
 
 connectDB().catch(console.error);
 
