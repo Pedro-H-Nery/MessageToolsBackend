@@ -17,10 +17,8 @@ let db;
 
 async function connectDB() {
     try {
-      console.log("Tentando conectar ao MongoDB na Vercel...");
       await client.connect();
       db = client.db("MessageTools");
-      console.log("Conexão estabelecida com sucesso!");
     } catch (error) {
       console.error("Erro ao conectar ao MongoDB:", error.message);
       throw error;
@@ -177,12 +175,6 @@ async function configurarTipos(idUsuario, tipos){
     return usuario;
 }
 
-function criaHash(numero){
-    const horaDataAtual = new Date().toISOString(); 
-    const stringHash = horaDataAtual + numero;
-    return crypto.createHash('sha256').update(stringHash).digest('hex');
-}
-
 async function recebeMensagem(message){
     const numeroUsuario = message.to;
     const usuario = await db.collection("usuarios").findOne({ numero: numeroUsuario });
@@ -192,7 +184,6 @@ async function recebeMensagem(message){
     const numeroRemetente = message.from;
     const nomeRemetente =  message.sender.name;
     const mensagem = message.body;
-    console.log(mensagem);
     const tipos = usuario.tipos;
     let classificacoes = usuario.classificacoes;
     const idUsuario = usuario.idUsuario;
@@ -211,7 +202,6 @@ async function recebeMensagem(message){
             let resposta = completion.choices[0].message.content;
             resposta = resposta.replace(/\s/g, '');
             resultado = resposta.split(",");
-            console.log(resultado);
         }
         for(let nivel in tipos){
             let numeros = tipos[nivel].numeros;
@@ -227,6 +217,8 @@ async function recebeMensagem(message){
                     }
                 }else if(tipos[nivel].tipoClassificacao == 1){
                     estaNivel = tipos[nivel].assuntos.some(element => resultado.includes(element.toLowerCase()));
+                }else if(tipos[nivel].tipoClassificacao == 2){
+                    estaNivel = true;
                 }
                 if(estaNivel){
                     if(!(numeroRemetente in classificacoes[nivel])){
@@ -244,24 +236,6 @@ async function recebeMensagem(message){
     return true;
 }
 
-function mostraNumero(numero){
-    let codigoPais = numero.slice(0, 2);
-    let ddd = numero.slice(2, 4);
-    let segundaParte = numero.slice(4, 8);
-    let terceiraParte = numero.slice(8, 12);
-    return `+${codigoPais} (${ddd}) 9 ${segundaParte}-${terceiraParte}`;
-}
-
-function formatarData (data){
-    const dia = String(data.getDate()).padStart(2, '0');
-    const mes = String(data.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
-    const ano = data.getFullYear();
-    const hora = String(data.getHours()).padStart(2, '0');
-    const minuto = String(data.getMinutes()).padStart(2, '0');
-  
-    return `${hora}:${minuto} ${dia}/${mes}/${ano}`;
-};
-
 async function nivel(idUsuario, nomeNivel){
     const usuario = await db.collection("usuarios").findOne({ idUsuario : idUsuario});
     if(usuario == null){
@@ -278,17 +252,6 @@ async function nivel(idUsuario, nomeNivel){
     }
     resposta["numeros"] = tipos[nomeNivel].numeros;
     resposta["mensagens"] = classificacoes[nomeNivel];
-    return resposta;
-}
-
-async function niveisUsuario(idUsuario){
-    const usuario = await db.collection("usuarios").findOne({ idUsuario : idUsuario});
-    if(usuario == null){
-        return null;
-    }
-    const tipos = usuario.tipos;
-    let resposta = {};
-    resposta["niveis"] = Object.keys(tipos);
     return resposta;
 }
 
@@ -344,14 +307,9 @@ async function voltar(idUsuario, numeroResolvido, resolvidoEm){
 }
 
 app.post("/api/login", async (req, res) =>{
-    if (!db) {
-        // Caso a conexão com o MongoDB não tenha sido estabelecida
-        return res.status(500).json({
-            success: false,
-            message: "Banco de dados não conectado.",
-        });
-    }
     try{
+        await client.connect();
+        db = client.db("MessageTools");
         const usuario = await login(req.body.email, req.body.senha);
         if (usuario != null) {
             res.status(201).json({ 
@@ -368,7 +326,7 @@ app.post("/api/login", async (req, res) =>{
     } catch (error) {
         res.status(500).json({ 
             success: false, 
-            message: "Erro ao fazer login.", 
+            message: 'Erro ao conectar ao MongoDB', 
             error: error.message 
         });
     }
@@ -434,14 +392,6 @@ app.post("/api/nivel", async (req, res) =>{
     });
 });
 
-app.post("/api/niveisUsuario", async (req, res) =>{
-    const resposta = await niveisUsuario(req.body.idUsuario);
-    res.status(201).json({ 
-        success: true,  
-        resposta 
-    });
-});
-
 app.post("/api/resolver", async (req, res) =>{
     try{
         const usuario = await resolver(req.body.idUsuario, req.body.nomeNivel, req.body.resolverNumero);
@@ -495,17 +445,6 @@ app.post("/api/voltar", async (req, res) =>{
         });
     }
 });
-
-app.get('/api/test-db', async (req, res) => {
-    try {
-      await client.connect();
-      db = client.db("MessageTools");
-      const collections = await db.listCollections().toArray();
-      res.status(200).json({ success: true, collections: collections, message: 'Conectado ao MongoDB com sucesso!' });
-    } catch (error) {
-      res.status(500).json({ success: false, message: 'Erro ao conectar ao MongoDB', error: error.message });
-    }
-  });
 
 let port = process.env.PORT || 3000;
 app.get('/api/', (req, res) => {
