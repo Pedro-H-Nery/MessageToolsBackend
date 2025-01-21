@@ -19,6 +19,7 @@ async function connectDB() {
     try {
       await client.connect();
       db = client.db("MessageTools");
+      console.log("MongoDB Conectado.")
     } catch (error) {
       console.error("Erro ao conectar ao MongoDB:", error.message);
       throw error;
@@ -184,6 +185,7 @@ async function recebeMensagem(message){
     const numeroRemetente = message.from;
     const nomeRemetente =  message.sender.name;
     const mensagem = message.body;
+    console.log(mensagem);
     const tipos = usuario.tipos;
     let classificacoes = usuario.classificacoes;
     const idUsuario = usuario.idUsuario;
@@ -202,6 +204,7 @@ async function recebeMensagem(message){
             let resposta = completion.choices[0].message.content;
             resposta = resposta.replace(/\s/g, '');
             resultado = resposta.split(",");
+            console.log(resultado);
         }
         for(let nivel in tipos){
             let numeros = tipos[nivel].numeros;
@@ -334,6 +337,8 @@ app.post("/api/login", async (req, res) =>{
 
 app.post("/api/cadastro", async (req, res) => {
     try {
+        await client.connect();
+        db = client.db("MessageTools");
         const usuario = await cadastro(req.body.email, req.body.senha, req.body.numero, req.body.tipos);
         if (usuario != null) {
             res.status(201).json({ 
@@ -358,6 +363,8 @@ app.post("/api/cadastro", async (req, res) => {
 
 app.post("/api/configurarTipos", async (req, res) =>{
     try{
+        await client.connect();
+        db = client.db("MessageTools");
         const usuario = await configurarTipos(req.body.idUsuario, req.body.tipos);
         if (usuario) {
             res.status(201).json({ 
@@ -385,6 +392,16 @@ app.post("/api/recebeMensagem", async (req, res) =>{
 });
 
 app.post("/api/nivel", async (req, res) =>{
+    try{
+        await client.connect();
+        db = client.db("MessageTools");
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: "Erro ao conectar com o banco de dados.", 
+            error: error.message 
+        });
+    }
     const resposta = await nivel(req.body.idUsuario, req.body.nomeNivel);
     res.status(201).json({ 
         success: true,  
@@ -394,6 +411,8 @@ app.post("/api/nivel", async (req, res) =>{
 
 app.post("/api/resolver", async (req, res) =>{
     try{
+        await client.connect();
+        db = client.db("MessageTools");
         const usuario = await resolver(req.body.idUsuario, req.body.nomeNivel, req.body.resolverNumero);
         if (usuario) {
             res.status(201).json({ 
@@ -416,6 +435,16 @@ app.post("/api/resolver", async (req, res) =>{
 });
 
 app.post("/api/historicoUsuario", async (req, res) =>{
+    try{
+        await client.connect();
+        db = client.db("MessageTools");
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: "Erro ao conectar com o banco de dados.", 
+            error: error.message 
+        });
+    }
     const resposta = await historicoUsuario(req.body.idUsuario);
     res.status(201).json({ 
         success: true, 
@@ -425,6 +454,8 @@ app.post("/api/historicoUsuario", async (req, res) =>{
 
 app.post("/api/voltar", async (req, res) =>{
     try{
+        await client.connect();
+        db = client.db("MessageTools");
         const resposta = voltar(req.body.idUsuario, req.body.numeroResolvido, req.body.resolvidoEm);
         if (resposta) {
             res.status(201).json({ 
